@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: go-chat-app
+    env: go
+    plan: free
+    buildCommand: go mod tidy && go build -o app
+    startCommand: ./app
+    envVars:
+      - key: PORT
+        value: 8080

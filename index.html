@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Мини-Чат</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 400px;
+            background-color: #2d2d2d;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .chat-header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00ff88;
+        }
+
+        .username-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        #username-input {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 15px;
+            background-color: #333;
+            color: white;
+            outline: none;
+        }
+
+        .username-section button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 15px;
+            background-color: #555;
+            color: white;
+            cursor: pointer;
+        }
+
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #1a1a1a;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            background-color: #333;
+        }
+
+        .message-time {
+            font-size: 0.8em;
+            color: #888;
+            margin-left: 5px;
+        }
+
+        .message-text {
+            margin-top: 3px;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 20px;
+            background-color: #333;
+            color: white;
+            outline: none;
+        }
+
+        #message-input::placeholder {
+            color: #888;
+        }
+
+        #send-button {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            background-color: #00cc66;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        #send-button:hover {
+            background-color: #00ff88;
+        }
+
+        .send-icon {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Мини-Чат</h1>
+        </div>
+
+        <div class="username-section">
+            <input type="text" id="username-input" placeholder="Введите ваше имя">
+            <button onclick="changeUsername()">Сменить</button>
+        </div>
+        
+        <div id="messages" class="messages"></div>
+        
+        <div class="input-container">
+            <input type="text" id="message-input" placeholder="Введите сообщение...">
+            <button id="send-button">
+                <svg class="send-icon" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+
+        let username = "User" + Math.floor(Math.random() * 1000);
+        document.getElementById("username-input").value = username;
+
+        // Функция для генерации цвета на основе строки
+        function getUsernameColor(username) {
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = hash % 360;
+            return `hsl(${hue}, 70%, 60%)`;
+        }
+
+        function changeUsername() {
+            const newUsername = document.getElementById("username-input").value.trim();
+            if (newUsername) {
+                username = newUsername;
+                alert("Имя изменено на: " + username);
+            }
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const socket = new WebSocket(protocol + '//' + host + '/ws');
+        
+        socket.onopen = function(event) {
+            console.log("Подключились к серверу");
+        };
+        
+        socket.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+            
+            const msgElement = document.createElement("div");
+            msgElement.className = "message";
+            
+            const usernameColor = getUsernameColor(message.username);
+            
+            msgElement.innerHTML = `
+                <div>
+                    <span class="message-username" style="color: ${usernameColor}">
+                        ${message.username}
+                    </span>
+                    <span class="message-time">[${message.time}]</span>
+                </div>
+                <div class="message-text">${message.text}</div>
+            `;
+            
+            document.getElementById("messages").appendChild(msgElement);
+            document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+        };
+        
+        document.getElementById("send-button").addEventListener("click", sendMessage);
+        
+        document.getElementById("message-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        });
+        
+        function sendMessage() {
+    const input = document.getElementById("message-input");
+    const message = input.value.trim();
+    
+    if (message) {
+        // Отправляем объект с именем и текстом
+        const messageData = {
+            username: username,
+            text: message
+        };
+        socket.send(JSON.stringify(messageData));
+        input.value = "";
+    }
+}
+    </script>
+</body>
+</html>
